@@ -1,13 +1,15 @@
 // Утилиты HTTP-сервера для окна чатов: чтение JSON-тела, отправка JSON/HTML.
 
-export function readJsonBody(req) {
+// maxBytes по умолчанию 2 МБ — для обычных JSON-запросов.
+// Для загрузки картинок передаётся 30 МБ (base64 раздувает payload на ~33%).
+export function readJsonBody(req, maxBytes = 2_000_000) {
   return new Promise((resolve, reject) => {
     let data = "";
     req.setEncoding("utf8");
     req.on("data", (chunk) => {
       data += chunk;
-      if (data.length > 2_000_000) {
-        reject(new Error("Request body is too large."));
+      if (data.length > maxBytes) {
+        reject(new Error(`Request body is too large (limit ${maxBytes} bytes).`));
         req.destroy();
       }
     });

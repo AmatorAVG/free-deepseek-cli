@@ -32,6 +32,29 @@ export async function runWindowApp({ client, workspaceRoot, port, modelType, thi
         return sendJson(res, { ok: true, ts: Date.now() });
       }
 
+      // Загрузка файла (картинки) на DeepSeek через наш прокси.
+      // Фронт шлёт base64 (картинки бывают мегабайты — лимит 30 МБ).
+      // Возвращаем file_id, который потом юзается в ref_file_ids массиве completion.
+      if (req.method === "POST" && url.pathname === "/api/upload") {
+        const body = await readJsonBody(req, 30_000_000);
+        if (!body.dataBase64 || !body.name) {
+          return sendJson(res, { error: "Поля name + dataBase64 обязательны." }, 400);
+        }
+        try {
+          const buffer = Buffer.from(body.dataBase64, "base64");
+          const fileId = await client.uploadFile(
+            buffer,
+            String(body.mimeType || "application/octet-stream"),
+            String(body.name),
+          );
+          console.log(`[upload] ${body.name} (${buffer.length}b) -> file_id=${fileId}`);
+          return sendJson(res, { fileId });
+        } catch (error) {
+          console.error(`[upload] FAILED for ${body.name}: ${error.message}`);
+          return sendJson(res, { error: error.message }, 500);
+        }
+      }
+
       if (req.method === "GET" && url.pathname === "/api/state") {
         return sendJson(res, {
           workspaceRoot,
@@ -202,13 +225,21 @@ export async function runWindowApp({ client, workspaceRoot, port, modelType, thi
         const sessionId = await client.createSession();
         const now = new Date().toISOString();
         const rawTitle = String(body.title || "").trim();
+        // Режим фиксируется при создании чата. После первого сообщения переключать
+        // нельзя — DeepSeek завязывает chain на одну модель. Если режим неизвестный
+        // или не указан — fallback на "fast".
+        const allowedModes = new Set(["fast", "expert", "vision"]);
+        const mode = allowedModes.has(String(body.mode)) ? String(body.mode) : "fast";
         const conversation = {
           id: randomUUID(),
           sessionId,
           title: rawTitle || "New chat",
           autoTitle: !rawTitle,
           workspace,
+          mode,
           parentMessageId: null,
+          // Отдельный chain для /code, чтобы Coding Agent system-prompt не загрязнял обычный чат.
+          codeParentMessageId: null,
           messages: [],
           createdAt: now,
           updatedAt: now,
@@ -254,6 +285,21 @@ export async function runWindowApp({ client, workspaceRoot, port, modelType, thi
         const prompt = String(body.content || "").trim();
         if (!prompt) return sendJson(res, { error: "Message is empty" }, 400);
 
+        // Режим берём ИЗ ЧАТА (зафиксирован при создании). Переключить нельзя —
+        // DeepSeek завязывает parent_message_id chain на одну модель.
+        // Тумблеры (thinking/search) — можно переключать per-message.
+        const messageMode = String(conversation.mode || "fast");
+        // thinking: в Expert по умолчанию true, юзер может перебить тумблером в обе стороны.
+        // search: чистый юзер-флаг, без переопределения от режима.
+        const useThinking = effectiveThinkingForMode(messageMode, body.thinking, thinkingEnabled);
+        const useSearch = body.search === true || (body.search !== false && searchEnabled);
+        const effectiveModelType = mapModeToModelType(messageMode, modelType);
+        // file_id'ы загруженных картинок для vision-режима. Фронт сначала зальёт
+        // файлы через /api/upload, потом шлёт их id здесь.
+        const refFileIds = Array.isArray(body.refFileIds)
+          ? body.refFileIds.filter((id) => typeof id === "string" && id.length > 0)
+          : [];
+
         const now = new Date().toISOString();
         const isFirstUserMessage = !conversation.messages.some((message) => message.role === "user");
         if (isFirstUserMessage && shouldAutoTitle(conversation)) {
@@ -277,14 +323,17 @@ export async function runWindowApp({ client, workspaceRoot, port, modelType, thi
             return sendJson(res, { conversation });
           }
 
+          // КРИТИЧНО: /code держит СВОЙ parent_message_id chain, отдельный от обычного чата.
+          // Иначе system-prompt «You are a coding agent, no internet» цепляется к обычным
+          // сообщениям, и модель отказывается отвечать на вопросы про реальный мир.
           const codeResult = await runCodeTask(client, {
             sessionId: conversation.sessionId,
-            modelType,
-            thinkingEnabled,
-            searchEnabled,
-          }, path.resolve(conversation.workspace || workspaceRoot), task, conversation.parentMessageId);
+            modelType: effectiveModelType,
+            thinkingEnabled: useThinking,
+            searchEnabled: useSearch,
+          }, path.resolve(conversation.workspace || workspaceRoot), task, conversation.codeParentMessageId || null);
 
-          conversation.parentMessageId = codeResult.parentMessageId ?? conversation.parentMessageId;
+          conversation.codeParentMessageId = codeResult.parentMessageId ?? conversation.codeParentMessageId;
           const toolText = codeResult.toolLogs.length ? `${codeResult.toolLogs.join("\n")}\n\n` : "";
           conversation.messages.push({
             role: "assistant",
@@ -300,9 +349,10 @@ export async function runWindowApp({ client, workspaceRoot, port, modelType, thi
           sessionId: conversation.sessionId,
           prompt,
           parentMessageId: conversation.parentMessageId,
-          modelType,
-          thinkingEnabled,
-          searchEnabled,
+          modelType: effectiveModelType,
+          thinkingEnabled: useThinking,
+          searchEnabled: useSearch,
+          refFileIds,
         });
 
         conversation.parentMessageId = result.lastAssistantMessageId ?? conversation.parentMessageId;
@@ -345,4 +395,46 @@ export async function runWindowApp({ client, workspaceRoot, port, modelType, thi
   process.once("SIGINT", () => shutdown("SIGINT"));
   process.once("SIGTERM", () => shutdown("SIGTERM"));
   process.once("SIGHUP", () => shutdown("SIGHUP"));
+}
+
+// Маппинг режима из UI в значение model_type для DeepSeek API.
+//
+// Точные значения зависят от того, что DeepSeek принимает на бэкенде —
+// мы их не реверсили, это конфигурируется через переменные окружения.
+// Хочешь сменить модель для Expert — поставь DEEPSEEK_MODEL_EXPERT=твоё-значение
+// в .env. Перезапуск CLI подтянет изменение.
+//
+// Как узнать правильное значение: открой chat.deepseek.com, DevTools → Network,
+// переключи режим, посмотри какой model_type уходит в POST /api/v0/chat/completion.
+// Маппинг режима из UI в model_type для DeepSeek API.
+// ВАЖНО: реальный DeepSeek-фронт во ВСЕХ режимах (Fast/Expert/Vision) посылает
+// model_type: null — отличие режимов закодировано в других флагах
+// (thinking_enabled для Expert, ref_file_ids для Vision).
+// Если мы шлём model_type: "expert" — DeepSeek принимает (нет 422), но
+// архитектурно с ним выключается поиск.
+// Через .env можно переопределить для экспериментов с разными моделями.
+function mapModeToModelType(mode, fallback) {
+  switch (mode) {
+    case "expert":
+      return process.env.DEEPSEEK_MODEL_EXPERT ?? null;
+    case "vision":
+      return process.env.DEEPSEEK_MODEL_VISION ?? null;
+    case "fast":
+    default:
+      if (process.env.DEEPSEEK_MODEL_FAST) return process.env.DEEPSEEK_MODEL_FAST;
+      return fallback ?? null;
+  }
+}
+
+// Должны ли мы принудительно включить thinking для данного режима.
+// Expert = "глубокое мышление" по умолчанию. Юзер может перебить тумблером.
+function effectiveThinkingForMode(mode, userToggle, globalDefault) {
+  if (userToggle === true) return true;
+  if (userToggle === false) {
+    // Юзер явно выключил — даже в Expert уважаем выбор.
+    return false;
+  }
+  // userToggle === undefined: используем дефолт режима.
+  if (mode === "expert") return true;
+  return globalDefault;
 }

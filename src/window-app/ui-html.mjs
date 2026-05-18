@@ -565,16 +565,167 @@ export function renderWindowHtml() {
       border-color: var(--accent);
     }
     .composer {
-      padding: 14px 18px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto;
+      padding: 0 18px 14px;
+      display: flex;
+      flex-direction: column;
       gap: 10px;
       background: var(--panel-2);
     }
+    .composerControls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .composerSpacer { flex: 1; }
     .bottomBar {
       border-top: 1px solid var(--line);
       background: var(--panel-2);
     }
+    /* Бейдж режима в шапке текущего чата (read-only индикатор). */
+    .titleRow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      grid-column: 1;
+      grid-row: 1;
+      min-width: 0;
+    }
+    .titleRow .title {
+      grid-column: unset;
+      grid-row: unset;
+    }
+    .modeBadge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      background: rgba(82, 126, 255, 0.14);
+      color: #aabfff;
+      border: 1px solid rgba(82, 126, 255, 0.4);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .modeBadge.hidden { display: none; }
+    .modeBadge.fast    { background: rgba(82, 126, 255, 0.14); color: #aabfff; border-color: rgba(82, 126, 255, 0.4); }
+    .modeBadge.expert  { background: rgba(168, 85, 247, 0.14); color: #d8b4fe; border-color: rgba(168, 85, 247, 0.4); }
+    .modeBadge.vision  { background: rgba(34, 197, 94, 0.14);  color: #86efac; border-color: rgba(34, 197, 94, 0.4); }
+
+    /* Mode picker в модалке Новый чат: 3 квадратные карточки с выбором. */
+    .modePicker {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .modeOption {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      background: transparent;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 120ms;
+      text-align: left;
+      color: var(--text);
+    }
+    .modeOption:hover {
+      border-color: var(--line-strong);
+      background: rgba(255,255,255,0.03);
+    }
+    .modeOption.active {
+      background: rgba(82, 126, 255, 0.10);
+      border-color: rgba(82, 126, 255, 0.55);
+    }
+    .modeOptionTitle {
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .modeOptionSub {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .modeHint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    /* Toggle pills внутри composer: «Глубокое мышление» / «Умный поиск». */
+    .togglePill {
+      padding: 6px 14px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 120ms;
+    }
+    .togglePill:hover {
+      color: var(--text);
+      border-color: var(--line-strong);
+    }
+    .togglePill.active {
+      background: rgba(82, 126, 255, 0.12);
+      color: #aabfff;
+      border-color: rgba(82, 126, 255, 0.4);
+    }
+    .togglePill.disabled,
+    .togglePill:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      background: transparent;
+      color: var(--muted);
+      border-color: var(--line);
+    }
+    .togglePill:disabled:hover {
+      background: transparent;
+      color: var(--muted);
+      border-color: var(--line);
+    }
+    .attachBtn { font-size: 12px; }
+
+    /* Список прикреплённых файлов над input'ом. */
+    .attachmentList {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .attachmentList:empty { display: none; }
+    .attachChip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px 4px 10px;
+      background: rgba(82, 126, 255, 0.08);
+      border: 1px solid rgba(82, 126, 255, 0.3);
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .attachChip .name {
+      font-weight: 600;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .attachChip .size {
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .attachChip .remove {
+      cursor: pointer;
+      color: var(--muted);
+      background: transparent;
+      border: none;
+      padding: 0 4px;
+      font-size: 14px;
+    }
+    .attachChip .remove:hover { color: #ef4444; }
     textarea {
       resize: none;
       min-height: 48px;
@@ -648,6 +799,25 @@ export function renderWindowHtml() {
           </div>
           <form id="newForm" class="newForm" autocomplete="off">
             <label class="formField">
+              <span>Режим (модель DeepSeek)</span>
+              <div class="modePicker" id="newChatMode">
+                <button type="button" class="modeOption active" data-mode="fast">
+                  <div class="modeOptionTitle">⚡ Быстрый</div>
+                  <div class="modeOptionSub">стандартная модель, быстро</div>
+                </button>
+                <button type="button" class="modeOption" data-mode="expert">
+                  <div class="modeOptionTitle">💎 Эксперт</div>
+                  <div class="modeOptionSub">reasoning, глубже думает</div>
+                </button>
+                <button type="button" class="modeOption" data-mode="vision">
+                  <div class="modeOptionTitle">🖼 Распознание</div>
+                  <div class="modeOptionSub">для изображений (beta)</div>
+                </button>
+              </div>
+              <div class="modeHint">Режим зафиксируется при создании чата. Переключить потом нельзя — создавай новый чат в нужном режиме.</div>
+            </label>
+
+            <label class="formField">
               <span>Название чата (опционально)</span>
               <input id="newTitle" placeholder="Например: рефакторинг auth" autocomplete="off">
             </label>
@@ -701,7 +871,10 @@ export function renderWindowHtml() {
     <div id="sidebarResizer" class="sidebarResizer" title="Изменить ширину списка чатов"></div>
     <main class="main">
       <header class="topbar">
-        <div id="activeTitle" class="title">No chat selected</div>
+        <div id="activeTitleRow" class="titleRow">
+          <div id="activeTitle" class="title">No chat selected</div>
+          <span id="activeMode" class="modeBadge hidden"></span>
+        </div>
         <div id="workspace" class="workspace"></div>
         <button id="settingsBtn" class="iconBtn settingsBtn" type="button" title="Settings / разрешённые команды">⚙</button>
       </header>
@@ -725,9 +898,17 @@ export function renderWindowHtml() {
       </section>
       <div class="bottomBar">
         <form id="composer" class="composer">
+          <div id="attachmentList" class="attachmentList"></div>
           <textarea id="messageInput" placeholder="Сообщение DeepSeek... или /code создай файл app.js" disabled></textarea>
-          <button id="codeBtn" class="codeBtn" type="button" disabled>/code</button>
-          <button id="sendBtn" class="sendBtn" type="submit" disabled>Send</button>
+          <input type="file" id="fileInput" multiple style="display:none">
+          <div class="composerControls">
+            <button type="button" id="toggleThinking" class="togglePill" title="Глубокое мышление — модель показывает chain-of-thought">⚛ Глубокое мышление</button>
+            <button type="button" id="toggleSearch" class="togglePill" title="Умный поиск — модель использует веб-поиск для актуальной инфы">🌐 Умный поиск</button>
+            <button type="button" id="attachBtn" class="togglePill attachBtn" title="Прикрепить текстовый файл для чтения">📎 Файл</button>
+            <div class="composerSpacer"></div>
+            <button id="codeBtn" class="codeBtn" type="button" disabled>/code</button>
+            <button id="sendBtn" class="sendBtn" type="submit" disabled>↑</button>
+          </div>
         </form>
         <div id="status" class="status"></div>
       </div>
@@ -943,7 +1124,7 @@ export function renderWindowHtml() {
       try {
         const data = await api("/api/conversations", {
           method: "POST",
-          body: { title, workspace, createFolder },
+          body: { title, workspace, createFolder, mode: newChatSelectedMode },
         });
         activeConversation = data.conversation;
         await loadState(activeConversation.id);
@@ -957,29 +1138,275 @@ export function renderWindowHtml() {
       }
     });
 
+    // ---- Toggle pills (Глубокое мышление / Умный поиск) ----
+    // Тумблеры — per-message, sticky через localStorage.
+    // Mode (Fast/Expert/Vision) теперь выбирается ТОЛЬКО при создании чата —
+    // переключать посреди разговора нельзя (DeepSeek API завязывает chain на одну модель).
+    const THINKING_KEY = "deepseek.composer.thinking";
+    const SEARCH_KEY = "deepseek.composer.search";
+    const NEWCHAT_MODE_KEY = "deepseek.newchat.mode";
+
+    const toggleThinking = document.getElementById("toggleThinking");
+    const toggleSearch = document.getElementById("toggleSearch");
+
+    let thinkingActive = localStorage.getItem(THINKING_KEY) === "1";
+    let searchActive = localStorage.getItem(SEARCH_KEY) === "1";
+
+    function applyToggleUI() {
+      toggleThinking.classList.toggle("active", thinkingActive);
+      toggleSearch.classList.toggle("active", searchActive);
+    }
+    applyToggleUI();
+
+    toggleThinking.addEventListener("click", () => {
+      thinkingActive = !thinkingActive;
+      localStorage.setItem(THINKING_KEY, thinkingActive ? "1" : "0");
+      applyToggleUI();
+    });
+
+    toggleSearch.addEventListener("click", () => {
+      searchActive = !searchActive;
+      localStorage.setItem(SEARCH_KEY, searchActive ? "1" : "0");
+      applyToggleUI();
+    });
+
+    // ---- File attachments ----
+    // Стратегия: читаем КАК ТЕКСТ всё, что приходит. Бинари (изображения, PDF, exe)
+    // дают мусор в декодировке — определяем по доле непечатных символов и null-байтов.
+    // Если файл реально текст любого происхождения (.config, без расширения,
+    // кириллица в имени, кастомное расширение) — пропускаем.
+    const MAX_FILE_BYTES = 500 * 1024; // 500 КБ — чтоб не утопить контекст
+    // Заведомо бинарные форматы — отказываем сразу, без чтения.
+    const BINARY_EXTENSIONS = new Set([
+      "png","jpg","jpeg","gif","webp","bmp","tiff","tif","heic","heif","svg",
+      "mp3","wav","ogg","flac","m4a","aac",
+      "mp4","mov","avi","mkv","webm","wmv",
+      "pdf","doc","docx","xls","xlsx","ppt","pptx","odt","ods","odp",
+      "zip","tar","gz","7z","rar","bz2","xz",
+      "exe","dll","so","dylib","bin","class","jar","war","apk","ipa",
+      "psd","ai","sketch","fig",
+      "ttf","otf","woff","woff2","eot",
+    ]);
+
+    let attachments = []; // [{ name, size, content }]
+    const fileInput = document.getElementById("fileInput");
+    const attachBtn = document.getElementById("attachBtn");
+    const attachmentList = document.getElementById("attachmentList");
+
+    attachBtn.addEventListener("click", () => fileInput.click());
+
+    // Прочитать файл как base64 без падений на больших размерах (через FileReader).
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          // result = "data:<mime>;base64,XXXX" — берём только base64-часть.
+          const url = String(reader.result);
+          const comma = url.indexOf(",");
+          resolve(comma >= 0 ? url.slice(comma + 1) : url);
+        };
+        reader.onerror = () => reject(reader.error || new Error("FileReader error"));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    fileInput.addEventListener("change", async (event) => {
+      for (const file of event.target.files) {
+        const ext = (file.name.split(".").pop() || "").toLowerCase();
+        const isImage = file.type.startsWith("image/")
+          || ["png","jpg","jpeg","gif","webp","bmp","svg"].includes(ext);
+
+        if (isImage) {
+          // Картинки — заливаем на DeepSeek через наш сервер. Лимит 10 МБ на файл.
+          if (file.size > 10 * 1024 * 1024) {
+            alert(\`Картинка "\${file.name}" слишком большая (\${Math.round(file.size/1024/1024)} МБ). Лимит 10 МБ.\`);
+            continue;
+          }
+          try {
+            const dataBase64 = await fileToBase64(file);
+            attachments.push({
+              name: file.name,
+              size: file.size,
+              kind: "image",
+              mimeType: file.type || "image/png",
+              dataBase64,
+            });
+          } catch (err) {
+            alert(\`Не удалось прочитать "\${file.name}": \${err.message}\`);
+          }
+          continue;
+        }
+
+        if (BINARY_EXTENSIONS.has(ext)) {
+          alert(\`Файл "\${file.name}" — бинарный (\${ext}). Сейчас поддерживаются текстовые файлы и изображения (PNG/JPG/GIF/WEBP).\\n\\nPDF и Office-документы пока не работают — для них нужна отдельная фаза.\`);
+          continue;
+        }
+
+        // Текстовый файл — читаем как UTF-8 и инлайним в промпт.
+        if (file.size > MAX_FILE_BYTES) {
+          alert(\`Файл "\${file.name}" слишком большой (\${Math.round(file.size/1024)} КБ). Лимит \${MAX_FILE_BYTES/1024} КБ для текстовых.\`);
+          continue;
+        }
+        try {
+          const content = await file.text();
+          const sample = content.slice(0, 1000);
+          let nonPrintable = 0;
+          for (let i = 0; i < sample.length; i += 1) {
+            const code = sample.charCodeAt(i);
+            if (code === 0) { nonPrintable = sample.length; break; }
+            if (code < 32 && code !== 9 && code !== 10 && code !== 13) nonPrintable += 1;
+          }
+          if (sample.length > 0 && nonPrintable / sample.length > 0.1) {
+            alert(\`Файл "\${file.name}" похож на бинарный. Если уверен, что текстовый — переименуй в .txt.\`);
+            continue;
+          }
+          attachments.push({ name: file.name, size: file.size, kind: "text", content });
+        } catch (err) {
+          alert(\`Не удалось прочитать "\${file.name}": \${err.message}\`);
+        }
+      }
+      fileInput.value = "";
+      renderAttachments();
+    });
+
+    function renderAttachments() {
+      attachmentList.innerHTML = "";
+      attachments.forEach((att, index) => {
+        const chip = document.createElement("span");
+        chip.className = "attachChip";
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = "📎 " + att.name;
+        const size = document.createElement("span");
+        size.className = "size";
+        size.textContent = Math.round(att.size / 1024) + " КБ";
+        const remove = document.createElement("button");
+        remove.className = "remove";
+        remove.type = "button";
+        remove.title = "Удалить";
+        remove.textContent = "✕";
+        remove.addEventListener("click", () => {
+          attachments.splice(index, 1);
+          renderAttachments();
+        });
+        chip.append(name, size, remove);
+        attachmentList.appendChild(chip);
+      });
+    }
+
+    // Префикс из ТЕКСТОВЫХ файлов в начало промпта. Картинки идут через ref_file_ids,
+    // их инлайнить в текст не надо.
+    function buildAttachmentsPrefix(textAttachments) {
+      if (!textAttachments.length) return "";
+      const parts = ["Я прикрепил файл" + (textAttachments.length > 1 ? "ы" : "") + " — прочитай и учитывай при ответе:"];
+      for (const att of textAttachments) {
+        const ext = (att.name.split(".").pop() || "").toLowerCase();
+        parts.push(\`\\n--- Файл: \${att.name} (\${Math.round(att.size/1024)} КБ) ---\\n\\\`\\\`\\\`\${ext}\\n\${att.content}\\n\\\`\\\`\\\`\`);
+      }
+      parts.push("\\n---\\n\\nМой вопрос:");
+      return parts.join("\\n");
+    }
+
+    // Mode picker в модалке нового чата — выбор фиксируется при создании.
+    const MODE_LABELS = {
+      fast: "⚡ Быстрый",
+      expert: "💎 Эксперт",
+      vision: "🖼 Распознание",
+    };
+    const newChatModePicker = document.getElementById("newChatMode");
+    let newChatSelectedMode = localStorage.getItem(NEWCHAT_MODE_KEY) || "fast";
+    function applyNewChatModeUI() {
+      for (const btn of newChatModePicker.querySelectorAll(".modeOption")) {
+        btn.classList.toggle("active", btn.dataset.mode === newChatSelectedMode);
+      }
+    }
+    applyNewChatModeUI();
+    newChatModePicker.addEventListener("click", (event) => {
+      const opt = event.target.closest(".modeOption");
+      if (!opt) return;
+      newChatSelectedMode = opt.dataset.mode;
+      localStorage.setItem(NEWCHAT_MODE_KEY, newChatSelectedMode);
+      applyNewChatModeUI();
+    });
+
     document.getElementById("composer").addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!activeConversation || sending) return;
-      const content = messageInput.value.trim();
-      if (!content) return;
+      const rawUserMessage = messageInput.value.trim();
+      if (!rawUserMessage && !attachments.length) return;
+
+      const textFiles = attachments.filter((a) => a.kind === "text");
+      const imageFiles = attachments.filter((a) => a.kind === "image");
+
+      // Если юзер прикрепил картинку, но ничего не написал — подставляем дефолтный
+      // промпт. DeepSeek API не принимает пустой prompt, и сам по себе file_id
+      // ничего не значит без текстового вопроса.
+      const userMessage = rawUserMessage || (imageFiles.length
+        ? "Что на этом изображении? Опиши подробно."
+        : "");
+
+      const attachPrefix = buildAttachmentsPrefix(textFiles);
+      const contentForApi = attachPrefix ? attachPrefix + "\\n\\n" + userMessage : userMessage;
+      // В UI чата показываем: оригинал юзера (если был) + список вложений.
+      // Если юзер ничего не печатал — показываем placeholder про дефолтный вопрос.
+      const displayParts = [];
+      if (rawUserMessage) displayParts.push(rawUserMessage);
+      if (!rawUserMessage && imageFiles.length) displayParts.push("(вопрос по изображению)");
+      if (attachments.length) {
+        displayParts.push(attachments.map((a) => "📎 " + a.name).join("\\n"));
+      }
+      const displayForChat = displayParts.join("\\n\\n");
 
       sending = true;
       setComposerEnabled(false);
       messageInput.value = "";
-      activeConversation.messages.push({ role: "user", content });
+      const sentAttachments = attachments;
+      attachments = [];
+      renderAttachments();
+      activeConversation.messages.push({ role: "user", content: displayForChat });
       renderConversation(activeConversation);
-      setStatus("DeepSeek is thinking...");
 
       try {
+        // Сначала заливаем картинки — получаем file_id для каждой.
+        // Загрузка + ожидание обработки (status=PENDING→SUCCESS) может занять
+        // 3-10 секунд на картинку, поэтому показываем индикатор прогресса.
+        const refFileIds = [];
+        if (imageFiles.length) {
+          for (let i = 0; i < imageFiles.length; i += 1) {
+            const img = imageFiles[i];
+            const num = imageFiles.length > 1 ? \` (\${i + 1}/\${imageFiles.length})\` : "";
+            setStatus(\`Заливаю и обрабатываю изображение\${num}: \${img.name}...\`);
+            const result = await api("/api/upload", {
+              method: "POST",
+              body: {
+                name: img.name,
+                mimeType: img.mimeType,
+                dataBase64: img.dataBase64,
+              },
+            });
+            if (!result.fileId) throw new Error("Upload вернул без fileId");
+            refFileIds.push(result.fileId);
+          }
+        }
+
+        setStatus("DeepSeek is thinking...");
         const data = await api("/api/conversations/" + activeConversation.id + "/messages", {
           method: "POST",
-          body: { content },
+          body: {
+            content: contentForApi,
+            thinking: thinkingActive,
+            search: searchActive,
+            refFileIds,
+          },
         });
         activeConversation = data.conversation;
         await loadState(activeConversation.id);
         renderConversation(activeConversation);
         setStatus("");
       } catch (error) {
+        // Возвращаем файлы юзеру — иначе он не поймёт, что они пропали.
+        attachments = sentAttachments;
+        renderAttachments();
         setStatus(error.message, true);
       } finally {
         sending = false;
@@ -1063,9 +1490,12 @@ export function renderWindowHtml() {
       }
     }
 
+    const activeModeBadge = document.getElementById("activeMode");
+
     function renderNoConversation() {
       activeTitle.textContent = "No chat selected";
       workspace.textContent = appState.workspaceRoot || "";
+      activeModeBadge.classList.add("hidden");
       messages.innerHTML = '<div class="empty">Создай чат слева. Каждый чат можно использовать как отдельный проект или рабочий контекст.</div>';
       setComposerEnabled(false);
     }
@@ -1074,6 +1504,15 @@ export function renderWindowHtml() {
       activeTitle.textContent = conversation.title;
       workspace.textContent = conversation.workspace || appState.workspaceRoot;
       if (appState.stateFile) workspace.title = "History: " + appState.stateFile;
+      // Бейдж режима: показывает, какая модель привязана к этому чату.
+      const mode = conversation.mode || "fast";
+      activeModeBadge.className = "modeBadge " + mode;
+      activeModeBadge.textContent = MODE_LABELS[mode] || MODE_LABELS.fast;
+      // Раньше я думал, что search не работает в Expert — но юзер подтвердил
+      // что в реальном DeepSeek UI работает в Fast и Expert. Vision ещё не проверяли.
+      toggleSearch.disabled = false;
+      toggleSearch.classList.remove("disabled");
+      toggleSearch.title = "Умный поиск — модель использует веб-поиск для актуальной инфы";
       setComposerEnabled(!sending);
       messages.innerHTML = "";
 

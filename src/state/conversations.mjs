@@ -6,6 +6,7 @@ export function conversationList(state) {
     id: conversation.id,
     title: conversation.title,
     workspace: conversation.workspace,
+    mode: conversation.mode || "fast",
     updatedAt: conversation.updatedAt,
     messageCount: conversation.messages.length,
   }));
