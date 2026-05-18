@@ -1,0 +1,7 @@
+node_modules/
+.env
+.DS_Store
+.deepseek-cli/
+cookies*.json
+*cookie*.json
+deepseek-token*.txt

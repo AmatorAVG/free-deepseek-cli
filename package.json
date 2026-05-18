@@ -1,0 +1,27 @@
+{
+  "name": "deepseek-cookie-cli",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "deepseek": "./bin/deepseek.mjs",
+    "deepseek-cookie-cli": "./bin/deepseek.mjs"
+  },
+  "scripts": {
+    "postinstall": "playwright install chromium",
+    "start": "node ./bin/deepseek.mjs --window",
+    "window": "node ./bin/deepseek.mjs --window",
+    "cli": "node ./bin/deepseek.mjs",
+    "chat": "node ./bin/deepseek.mjs",
+    "login": "node ./bin/deepseek.mjs --login",
+    "save-creds": "node ./bin/deepseek.mjs --save-creds",
+    "check": "node ./bin/deepseek.mjs --check",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "playwright": "^1.60.0"
+  }
+}
