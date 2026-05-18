@@ -37,7 +37,7 @@ CLI и десктопное окно для работы с `chat.deepseek.com` 
 ### macOS / Linux
 
 ```bash
-git clone <repo-url> deepseek-cli
+git clone https://github.com/Staks-sor/free-deepseek-cli.git deepseek-cli
 cd deepseek-cli
 npm install
 ```
@@ -55,7 +55,7 @@ sudo npx playwright install-deps chromium
 ### Windows
 
 ```powershell
-git clone <repo-url> deepseek-cli
+git clone https://github.com/Staks-sor/free-deepseek-cli.git deepseek-cli
 cd deepseek-cli
 npm install
 ```
@@ -211,3 +211,23 @@ npm run save-creds
 - `/code` запускает команды **без shell**, в пределах workspace, с whitelist. Сетевые команды (`curl`, `wget`) и shell (`bash`, `sh`) заблокированы по умолчанию — это сознательно.
 - HTTP-сервер биндится только на `127.0.0.1` — снаружи недоступен.
 - Chromium-профиль (`~/.deepseek-cli/browser-profile/`) полностью контролируется только тобой — никакие другие сайты в этот профиль не лезут (его открывает только Playwright по запросу программы).
+
+---
+
+## ⭐ Поддержи проект звездой
+
+Если CLI оказался полезен — **поставь звезду на GitHub**: [github.com/Staks-sor/free-deepseek-cli](https://github.com/Staks-sor/free-deepseek-cli). Это занимает секунду, ничего не стоит, но реально помогает: чем больше звёзд, тем выше проект в выдаче, тем больше людей его найдут.
+
+Нашёл баг или есть идея? Открой [Issue](https://github.com/Staks-sor/free-deepseek-cli/issues) — отвечу.
+
+## 💳 Поддержать развитие
+
+Если проект экономит тебе время и хочется отблагодарить материально — можно перевести любую сумму:
+
+- **Карта (ОТП Банк):** `2201 9604 2500 7505`
+
+Любая сумма — это сигнал, что разработка имеет смысл, и мотивация добавлять новые фичи (мультипровайдер для Qwen/Kimi, attachments, стриминг и т.д.). Спасибо!
+
+## Лицензия
+
+Personal-Use-Only — см. [LICENSE](LICENSE). Кратко: использовать в личных целях можно, распространять и модифицировать для распространения — только с разрешения автора. При любом одобренном использовании имя автора должно сохраняться.

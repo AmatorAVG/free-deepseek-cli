@@ -10,8 +10,8 @@
 ## Установка (одна команда после клонирования)
 
 ```bash
-git clone https://github.com/<YOUR_USERNAME>/deepseek-cli.git
-cd deepseek-cli
+git clone https://github.com/Staks-sor/free-deepseek-cli.git
+cd free-deepseek-cli
 npm install
 ```
 
